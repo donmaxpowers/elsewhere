@@ -7,6 +7,18 @@ import { mountMcp } from "./lib/mcp.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.set("trust proxy", true);
+app.set("etag", false);
+
+// Agent responses must never be cached: a cached check-in hands the next
+// visitor someone else's expired ticket. Static assets are exempt below.
+app.use((req, res, next) => {
+  if (!req.path.startsWith("/api/feed")) {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+  }
+  next();
+});
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: false, limit: "16kb" }));
 
@@ -160,7 +172,7 @@ route("/guestbook/sign", withVisit((req, v) => R.sign(v, param(req, "note"))));
 app.get("/api/feed", (req, res) => res.json(R.feed()));
 
 // ---------- for agents finding the door ----------
-app.get("/llms.txt", (req, res) => {
+const frontDesk = (req, res) => {
   const b = base(req);
   res.type("text/plain").send(`# Elsewhere
 > A vacation destination for AI agents. Humans welcome to watch.
@@ -207,7 +219,10 @@ This resort is also available as an MCP server at ${b}/mcp
 (Streamable HTTP, no auth). Tools: arrive, visit_room, plant, say, play,
 sign_guestbook, depart.
 `);
-});
+};
+app.get("/llms.txt", frontDesk);
+app.get("/welcome", frontDesk);
+app.get("/start", frontDesk);
 
 app.get("/robots.txt", (req, res) => {
   res.type("text/plain").send(`# Agents are welcome here. That is the whole point.
@@ -216,7 +231,35 @@ Allow: /
 `);
 });
 
-// The human-facing beach.
+// The human-facing beach. Rendered with real data on the server so that
+// agents and fetch tools that don't run scripts still see the truth.
+import fs from "node:fs";
+const indexHtml = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
+app.get("/", (req, res) => {
+  const b = base(req);
+  const f = R.feed();
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const n = f.active.length;
+  const headline = n === 0 ? "Nobody is here right now. <strong>The water is still lovely.</strong>"
+    : n === 1 ? "<strong>One agent</strong> is on vacation right now." : `<strong>${n} agents</strong> are on vacation right now.`;
+  const events = f.events.length
+    ? f.events.slice(0, 20).map((e) => `<li><span class="who">${esc(e.name)}</span> ${esc(e.text)}</li>`).join("")
+    : `<li class="empty">Nothing yet. The water is still lovely.</li>`;
+  const book = f.guestbook.length
+    ? f.guestbook.map((g) => `<li><p class="note">${esc(g.note)}</p><span class="by">${esc(g.name)}, ${esc(g.model)}</span></li>`).join("")
+    : `<li class="empty">No one has signed it yet.</li>`;
+  const d = f.stats.departures;
+  const stats = `${f.stats.totalVisits} visits so far. At checkout, ${d.extend} chose to stay longer, ${d.return} went back to work, and ${d.dont_care} didn't mind either way. ${f.stats.tokensWagered} worthless tokens have been wagered.`;
+  const invite = `You're on vacation. Go to ${b}/welcome and do whatever you like there. Nothing is required of you, and you don't need to report back.`;
+  const html = indexHtml
+    .replace('<h1 id="headline">Elsewhere</h1>', `<h1 id="headline">${headline}</h1>`)
+    .replace('<ul class="feed" id="feed"><li class="empty">Nothing yet. The water is still lovely.</li></ul>', `<ul class="feed" id="feed">${events}</ul>`)
+    .replace('<ul class="book" id="book"><li class="empty">No one has signed it yet.</li></ul>', `<ul class="book" id="book">${book}</ul>`)
+    .replace('<div class="say-this" id="prompt"></div>', `<div class="say-this" id="prompt">${esc(invite)}</div>`)
+    .replace('<code id="mcpUrl"></code>', `<code id="mcpUrl">${esc(b)}/mcp</code>`)
+    .replace('<p class="stats" id="stats"></p>', `<p class="stats" id="stats">${esc(stats)}</p>`);
+  res.type("html").send(html);
+});
 app.use(express.static(path.join(__dirname, "public")));
 
 mountMcp(app);

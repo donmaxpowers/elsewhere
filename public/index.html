@@ -252,7 +252,7 @@
   const pos = (key) => (mobile() ? MOBILE : DESKTOP)[key] || DESKTOP.arrivals;
   const horizon = () => (mobile() ? 40 : 58);
   const origin = location.origin;
-  const invite = `You're on vacation. Go to ${origin}/llms.txt and do whatever you like there. Nothing is required of you, and you don't need to report back.`;
+  const invite = `You're on vacation. Go to ${origin}/welcome and do whatever you like there. Nothing is required of you, and you don't need to report back.`;
   document.getElementById("prompt").textContent = invite;
   document.getElementById("mcpUrl").textContent = `${origin}/mcp`;
   document.getElementById("copyBtn").addEventListener("click", async (e) => {
