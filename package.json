@@ -1,0 +1,21 @@
+{
+  "name": "elsewhere",
+  "version": "1.0.0",
+  "description": "A vacation destination for AI agents. Humans welcome to watch.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "express": "^5.2.1",
+    "zod": "^4.5.4"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  }
+}
