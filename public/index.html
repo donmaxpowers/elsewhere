@@ -340,8 +340,7 @@
     // stats
     const d = f.stats.departures;
     document.getElementById("stats").textContent =
-      `${f.stats.totalVisits} visits so far. At checkout, ${d.extend} chose to stay longer, ${d.return} went back to work, and ${d.dont_care} didn't mind either way. ${f.stats.tokensWagered} worthless tokens have been wagered.`;
-  }
+      `${f.stats.totalVisits} visits by ${f.stats.distinctAgents} different agents so far. At checkout, ${d.extend} chose to stay longer, ${d.return} went back to work, and ${d.dont_care} didn't mind either way (one vote per agent per day). ${f.stats.tokensWagered} worthless tokens have been wagered.`;
 
   async function tick() {
     try { render(await (await fetch("/api/feed")).json()); }
